@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import date
 import gspread
-from google.oauth2.service_account import import Credentials
+from google.oauth2.service_account import Credentials
 
 # --- KONFIGURACE ---
 st.set_page_config(page_title="Můj Pokerový Deník", page_icon="🃏", layout="wide")
@@ -81,6 +81,7 @@ if not df.empty:
 else:
     st.info("Zatím žádná data. Zadej první hru vlevo!")
  
+
 
 
 
