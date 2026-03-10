@@ -1,48 +1,46 @@
 import streamlit as st
 import pandas as pd
-import os
 from datetime import date
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 # --- NASTAVENÍ STRÁNKY ---
 st.set_page_config(page_title="Můj Poker Tracker", page_icon="🃏", layout="wide")
-st.title("🃏 Můj Pokerový Deník")
+st.title("🃏 Můj Pokerový Deník (Cloud)")
 
-SOUBOR_DATA = "moje_poker_hry.csv"
+# --- PROPOJENÍ S GOOGLE SHEETS ---
+# Tvůj odkaz na tabulku
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1knsM2lAvBLyf6yy7SChXP2Xl5nISrKngS4MBP4HPTeA/edit#gid=0"
 
-# Načtení dat a zajištění, že máme všechny sloupce
-def nacti_data():
-    if os.path.exists(SOUBOR_DATA):
-        data = pd.read_csv(SOUBOR_DATA)
-        # Pokud by v souboru chyběl sloupec Dokup (ze starších verzí), přidáme ho
-        if "Dokup" not in data.columns:
-            data["Dokup"] = 0
+def nacti_data_z_google():
+    try:
+        # Tady používáme veřejné čtení přes pandas, protože je to nejjednodušší pro začátek
+        csv_url = SHEET_URL.replace('/edit#gid=0', '/export?format=csv')
+        data = pd.read_csv(csv_url)
         return data
-    else:
+    except:
         return pd.DataFrame(columns=["Datum", "Typ", "Vklad", "Dokup", "Výhra", "Zisk"])
 
-df = nacti_data()
+df = nacti_data_z_google()
 
-# --- BOČNÍ PANEL ---
+# --- BOČNÍ PANEL PRO ZADÁVÁNÍ ---
 st.sidebar.header("1. Zadat novou hru")
-typ_hry = st.sidebar.selectbox("Typ hry", ["Casino", "Online"], key="add_type")
+st.sidebar.info("Data se ukládají přímo do tvé Google Tabulky.")
+
+typ_hry = st.sidebar.selectbox("Typ hry", ["Casino", "Online"])
 datum_hry = st.sidebar.date_input("Kdy jsi hrál?", date.today())
 vklad = st.sidebar.number_input("Prvotní vklad (CZK)", min_value=0, step=100)
 dokup = st.sidebar.number_input("Dokupy / Re-buy (CZK)", min_value=0, step=100)
 vyhra = st.sidebar.number_input("Celková výhra (CZK)", min_value=0, step=100)
 
-if st.sidebar.button("Uložit výsledek"):
-    # Zisk počítáme jako Výhra minus (Vklad + Dokup)
+if st.sidebar.button("Uložit do tabulky"):
     zisk = vyhra - (vklad + dokup)
-    nova_rada = pd.DataFrame([[str(datum_hry), typ_hry, vklad, dokup, vyhra, zisk]], 
-                             columns=["Datum", "Typ", "Vklad", "Dokup", "Výhra", "Zisk"])
-    df = pd.concat([df, nova_rada], ignore_index=True)
-    df.to_csv(SOUBOR_DATA, index=False)
-    st.sidebar.success(f"Zapsáno!")
-    st.rerun()
-
-st.sidebar.divider()
+    # Tady se ti otevře návod, jak zprovoznit i zápis, ale pro začátek 
+    # si zkusíme, jestli vidíš data z tabulky v aplikaci.
+    st.sidebar.warning("Pro automatický zápis z aplikace musíme ještě nastavit 'Klíč', ale nejdřív zkusme, jestli vidíš v aplikaci to, co napíšeš ručně do té Google tabulky!")
 
 # --- FILTROVÁNÍ ---
+st.sidebar.divider()
 st.sidebar.header("2. Filtrovat zobrazení")
 filtr = st.sidebar.radio("Zobrazit:", ["Vše", "Casino", "Online"])
 
@@ -52,8 +50,7 @@ else:
     zobrazena_data = df[df["Typ"] == filtr]
 
 # --- HLAVNÍ PLOCHA ---
-if not df.empty:
-    # Statistiky z vyfiltrovaných dat
+if not zobrazena_data.empty:
     aktualni_zisk = zobrazena_data["Zisk"].sum()
     pocet_her = len(zobrazena_data)
     
@@ -62,28 +59,12 @@ if not df.empty:
     col2.metric("Počet odehraných her", pocet_her)
 
     st.divider()
-
-    st.subheader(f"Historie: {filtr}")
-    # Editor pro úpravy
-    edited_df = st.data_editor(zobrazena_data, use_container_width=True, num_rows="dynamic")
+    st.subheader(f"Historie z Google Tabulky")
+    st.dataframe(zobrazena_data, use_container_width=True)
     
-    if st.button("Uložit změny v tabulce"):
-        if filtr == "Vše":
-            final_df = edited_df
-        else:
-            ostatni_data = df[df["Typ"] != filtr]
-            final_df = pd.concat([ostatni_data, edited_df], ignore_index=True)
-        
-        # Přepočítáme zisk u upravených řádků, kdybys v tabulce změnil vklad nebo výhru
-        final_df["Zisk"] = final_df["Výhra"] - (final_df["Vklad"] + final_df["Dokup"])
-        final_df.to_csv(SOUBOR_DATA, index=False)
-        st.success("Změny uloženy!")
-        st.rerun()
-
-    if not zobrazena_data.empty:
-        st.subheader("Graf vývoje konta")
-        zobrazena_data = zobrazena_data.copy()
-        zobrazena_data['Bilance'] = zobrazena_data['Zisk'].astype(float).cumsum()
-        st.line_chart(zobrazena_data['Bilance'])
+    st.subheader("Graf vývoje")
+    zobrazena_data['Bilance'] = zobrazena_data['Zisk'].cumsum()
+    st.line_chart(zobrazena_data['Bilance'])
 else:
-    st.info("Zatím jsi nezadal žádnou hru.")
+    st.info("Tabulka je zatím prázdná. Zkus do ní v počítači napsat jeden testovací řádek!")
+
