@@ -52,11 +52,12 @@ if not df.empty:
     )
     
     # GRAF
-    st.subheader("Graf vývoje")
+    
+st.subheader("Graf vývoje")
     df['Bilance'] = df['Zisk'].cumsum()
-    st.line_chart(df['Bilance'])
-else:
-    st.info("Tabulka je prázdná. Zkus něco zapsat do Google Tabulky!")
+    # Nastavíme Datum jako index jen pro graf, aby se zobrazovalo v tom vyskakovacím okýnku
+    graf_data = df.set_index('Datum')
+    st.line_chart(graf_data['Bilance'])
 
 
 
