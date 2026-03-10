@@ -14,8 +14,7 @@ def pripoj_tabulku():
     creds = Credentials.from_service_account_info(creds_info, scopes=scope)
     client = gspread.authorize(creds)
     # Tady je ID tvé tabulky
-    sheet = client.open_by_key("1knsM2lAvBLyf6yy7SChXP2Xl5nISrKngS4MBP4HPTeA").sheet1
-    return sheet
+    sheet = client.open_by_key("1knsM2lAvBLyf6yy7SChXP2Xl5nISrKngS4MBP4HPTeA").get_worksheet(0)
 
 # --- NAČTENÍ DAT ---
 def nacti_data():
@@ -81,6 +80,7 @@ if not df.empty:
 else:
     st.info("Zatím žádná data. Zadej první hru vlevo!")
  
+
 
 
 
